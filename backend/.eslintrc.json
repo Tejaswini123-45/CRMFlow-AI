@@ -1,0 +1,55 @@
+{
+  "env": {
+    "node": true,
+    "es2021": true,
+    "jest": true
+  },
+  "extends": "eslint:recommended",
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module"
+  },
+  "rules": {
+    "no-unused-vars": "warn",
+    "no-console": "off",
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["**/pipeline/ingestion/**"],
+            "message": "Direct imports from pipeline components are forbidden. Use /contracts instead."
+          },
+          {
+            "group": ["**/pipeline/header_analysis/**"],
+            "message": "Direct imports from pipeline components are forbidden. Use /contracts instead."
+          },
+          {
+            "group": ["**/pipeline/ai_mapping/**"],
+            "message": "Direct imports from pipeline components are forbidden. Use /contracts instead."
+          },
+          {
+            "group": ["**/pipeline/mapping_finalization/**"],
+            "message": "Direct imports from pipeline components are forbidden. Use /contracts instead."
+          },
+          {
+            "group": ["**/pipeline/transformation/**"],
+            "message": "Direct imports from pipeline components are forbidden. Use /contracts instead."
+          },
+          {
+            "group": ["**/pipeline/validation/**"],
+            "message": "Direct imports from pipeline components are forbidden. Use /contracts instead."
+          },
+          {
+            "group": ["**/pipeline/duplicate_detection/**"],
+            "message": "Direct imports from pipeline components are forbidden. Use /contracts instead."
+          },
+          {
+            "group": ["**/pipeline/export/**"],
+            "message": "Direct imports from pipeline components are forbidden. Use /contracts instead."
+          }
+        ]
+      }
+    ]
+  }
+}
