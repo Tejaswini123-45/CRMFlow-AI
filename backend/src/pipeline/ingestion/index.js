@@ -2,73 +2,179 @@
  * CSV Ingestion Component (INGEST)
  * LLD §2.2 - CSV Ingestion
  *
- * Phase 3: Placeholder implementation with mock data
- * Phase 4+: Real CSV parsing with encoding/delimiter detection
+ * Phase 4: Real CSV parsing implementation
+ * - Encoding detection using chardet library with probabilistic handling
+ * - Delimiter detection using DelimiterDetector abstraction  
+ * - CSV parsing using csv-parse library
+ * - All limits from CONFIG, never truncate data
+ * - Deterministic behavior for identical inputs
  */
 
+import { parse } from 'csv-parse/sync';
 import { ErrorTypes } from '../../contracts/types.js';
+import { AUDIT } from '../../audit/index.js';
+import { CONFIG } from '../../config/index.js';
+import { detectEncoding, validateEncoding } from './encoding-detector.js';
+import { createDefaultDelimiterDetector } from './delimiter-detector.js';
+import { 
+  validateRawFile, 
+  validateParsedRows, 
+  validateAndProcessHeaders, 
+  filterEmptyRows 
+} from './validation.js';
 
 /**
  * Ingest and parse CSV file
  * LLD §6: ingest(raw_file) → ParsedFile | IngestionError
  *
  * @param {Buffer|File} rawFile - Raw CSV file
- * @param {Object} _context - State context (unused in Phase 3)
+ * @param {Object} context - State context (contains import_run_id)
  * @returns {Promise<{success: boolean, data?: Object, error?: Object, metadata?: Object}>}
  */
-export async function execute(rawFile, _context) {
+export async function execute(rawFile, context) {
+  const import_run_id = context?.import_run_id || 'unknown';
+  
   try {
-    // Phase 3: Mock implementation
-    // Simulate parsing delay
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // Check for empty file
-    if (!rawFile || rawFile.length === 0) {
-      return {
-        success: false,
-        error: {
-          type: ErrorTypes.EMPTY_OR_UNREADABLE_FILE,
-          message: 'File is empty or unreadable',
-        },
-      };
+    // 1. Validate raw file
+    validateRawFile(rawFile);
+    
+    // 2. Detect encoding with probabilistic handling
+    const encodingResult = await detectEncoding(rawFile, import_run_id);
+    
+    // 3. Convert buffer to text
+    let text;
+    try {
+      text = rawFile.toString(encodingResult.encoding);
+    } catch (error) {
+      return createError(
+        ErrorTypes.STRUCTURAL_PARSE_ERROR,
+        `Text conversion failed with encoding ${encodingResult.encoding}: ${error.message}`
+      );
     }
-
-    // Mock parsed data structure
-    const mockParsedFile = {
-      rows: [
-        ['John Doe', 'john@example.com', '+1-555-0100', 'Acme Corp', 'Manager'],
-        ['Jane Smith', 'jane@example.com', '+1-555-0101', 'TechCo', 'Director'],
-        ['Bob Johnson', 'bob@example.com', '+1-555-0102', 'StartupXYZ', 'CEO'],
-        ['Alice Williams', 'alice@example.com', '+1-555-0103', 'Enterprise Inc', 'VP'],
-        ['Charlie Brown', 'charlie@example.com', '+1-555-0104', 'Global Ltd', 'Analyst'],
-      ],
-      headers: ['Full Name', 'Email Address', 'Phone', 'Company Name', 'Job Title'],
-      encoding: 'utf-8',
-      delimiter: ',',
-      row_count: 5,
+    
+    // 4. Validate encoding result
+    if (!validateEncoding(rawFile, encodingResult.encoding)) {
+      // Try UTF-8 fallback
+      try {
+        text = rawFile.toString('utf8');
+        AUDIT.record({
+          import_run_id,
+          stage: 'PARSING',
+          subject: 'encoding_correction',
+          decision: 'utf8',
+          rationale: `Original encoding ${encodingResult.encoding} produced invalid text, switched to UTF-8`,
+          timestamp: new Date()
+        });
+      } catch (fallbackError) {
+        return createError(
+          ErrorTypes.STRUCTURAL_PARSE_ERROR,
+          `Both detected encoding and UTF-8 fallback failed`
+        );
+      }
+    }
+    
+    // 5. Detect delimiter using abstraction
+    const delimiterDetector = createDefaultDelimiterDetector();
+    const maxSampleLines = CONFIG.get('delimiter_detection_sample_lines');
+    const delimiterResult = await delimiterDetector.detect(text, { maxSampleLines });
+    
+    // 6. Record delimiter detection
+    AUDIT.record({
+      import_run_id,
+      stage: 'PARSING',
+      subject: 'delimiter_detection',
+      decision: delimiterResult.delimiter,
+      rationale: delimiterResult.rationale,
+      confidence: delimiterResult.confidence,
+      timestamp: new Date()
+    });
+    
+    // 7. Parse CSV with detected parameters
+    let records;
+    try {
+      records = parse(text, {
+        delimiter: delimiterResult.delimiter,
+        quote: '"',
+        escape: '"',
+        columns: false, // We handle headers manually
+        skip_records_with_error: false, // Fail on errors, don't skip
+        relaxColumnCount: true, // Allow variable column counts
+        skip_empty_lines: false, // We filter empty rows ourselves
+      });
+    } catch (parseError) {
+      return createError(
+        ErrorTypes.STRUCTURAL_PARSE_ERROR,
+        `CSV parsing failed: ${parseError.message}`
+      );
+    }
+    
+    // 8. Validate parsed rows
+    validateParsedRows(records);
+    
+    // 9. Process headers and data
+    const [headerRow, ...dataRows] = records;
+    const processedHeaders = validateAndProcessHeaders(headerRow);
+    const filteredRows = filterEmptyRows(dataRows);
+    
+    // 10. Record parsing success
+    AUDIT.record({
+      import_run_id,
+      stage: 'PARSING', 
+      subject: 'parsing_complete',
+      decision: `${filteredRows.length} rows processed`,
+      rationale: `Successfully parsed CSV with ${processedHeaders.length} columns`,
+      timestamp: new Date()
+    });
+    
+    // 11. Assemble ParsedFile result
+    const parsedFile = {
+      rows: filteredRows,
+      headers: processedHeaders,
+      encoding: encodingResult.encoding,
+      delimiter: delimiterResult.delimiter,
+      row_count: filteredRows.length
     };
-
+    
     return {
       success: true,
-      data: mockParsedFile,
+      data: parsedFile,
       metadata: {
         file_info: {
-          encoding: mockParsedFile.encoding,
-          delimiter: mockParsedFile.delimiter,
-          row_count: mockParsedFile.row_count,
+          encoding: encodingResult.encoding,
+          delimiter: delimiterResult.delimiter,
+          row_count: filteredRows.length,
+          encoding_confidence: encodingResult.confidence,
+          delimiter_confidence: delimiterResult.confidence,
+          used_encoding_fallback: encodingResult.wasFallback
         },
       },
     };
+    
   } catch (error) {
-    return {
-      success: false,
-      error: {
-        type: ErrorTypes.STRUCTURAL_PARSE_ERROR,
-        message: `Parsing failed: ${error.message}`,
-        details: { originalError: error.message },
-      },
-    };
+    // Handle validation and other errors
+    if (error.type) {
+      return createError(error.type, error.message);
+    } else {
+      return createError(
+        ErrorTypes.STRUCTURAL_PARSE_ERROR,
+        `Ingestion failed: ${error.message}`
+      );
+    }
   }
+}
+
+/**
+ * Create standardized error response
+ * @private
+ */
+function createError(type, message) {
+  return {
+    success: false,
+    error: {
+      type,
+      message,
+    },
+  };
 }
 
 export default { execute };

@@ -101,4 +101,17 @@ export const DEFAULT_CONFIG = {
     phone_required: false,
     min_phone_digits: 7,
   },
+
+  // File Processing Limits (Phase 4)
+  max_file_size_bytes: 50 * 1024 * 1024, // 50MB
+  csv_parsing_timeout_ms: 30000, // 30 seconds
+  
+  // Detection Parameters
+  encoding_detection_sample_size: 8192, // First 8KB for encoding detection
+  delimiter_detection_sample_lines: 10, // First 10 lines for delimiter detection
+  encoding_confidence_threshold: 0.7, // Minimum confidence for encoding detection
+  
+  // Content Limits
+  max_cell_size_bytes: 100 * 1024, // 100KB per cell
+  max_header_length: 255, // Characters per header
 };
