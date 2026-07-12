@@ -84,6 +84,9 @@ export const CONFIG = {
   getSampleSize: () => get('header_analysis_sample_size'),
   getTargetSchema: () => get('target_schema'),
   getValidationRules: () => get('validation'),
+  
+  // Internal testing helper
+  _setForTesting,
 };
 
 export default CONFIG;
