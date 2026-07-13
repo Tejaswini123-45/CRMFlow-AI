@@ -66,6 +66,18 @@ export async function executeStage(state, dataStore, components) {
             normalizedRows,
             // existingRecordIndex and matcher use defaults from DEDUPE component
           };
+        } else if (stageName === 'EXPORT') {
+          // Bundle all three upstream results required for row classification and assembly:
+          // - duplicateVerdicts (primary, from DEDUPE)
+          // - rowVerdicts (from VALID)
+          // - normalizedRows (from XFORM, carries the actual field values)
+          const rowVerdicts = await dataStore.retrieve(state.import_run_id, 'VALID');
+          const normalizedRows = await dataStore.retrieve(state.import_run_id, 'XFORM');
+          input = {
+            duplicateVerdicts: primaryInput,
+            rowVerdicts,
+            normalizedRows,
+          };
         } else {
           input = primaryInput;
         }
