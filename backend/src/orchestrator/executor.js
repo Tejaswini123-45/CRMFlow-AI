@@ -223,7 +223,7 @@ export async function executeMappingFinalization(
     const proposals = await dataStore.retrieve(import_run_id, 'AIMAP');
 
     // Execute finalization (with or without corrections)
-    const result = await component.finalize(proposals, corrections);
+    const result = await component.finalize(proposals, corrections, { import_run_id });
 
     if (result.success) {
       // Store finalized mapping
