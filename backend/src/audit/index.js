@@ -101,6 +101,7 @@ export const AUDIT = {
   count,
   clear,
   clearImport,
+  _clearForTesting: clear, // Alias for test compatibility
 };
 
 export default AUDIT;

@@ -44,10 +44,10 @@ export async function executeStage(state, dataStore, components) {
 
   try {
     // Get input data: INGEST reads the raw uploaded file; all other stages read the
-    // previous stage's output.  XFORM is the one exception: it needs both the
-    // FinalizedMapping (from MAPFIN) and the raw ParsedFile rows (from INGEST)
-    // because normalization requires the actual cell values, not just the mapping.
-    // ORCH assembles both here so XFORM remains a pure transformation function.
+    // previous stage's output.  XFORM and DEDUPE are exceptions that need multiple inputs:
+    // - XFORM needs FinalizedMapping (from MAPFIN) + ParsedFile (from INGEST) for cell values
+    // - DEDUPE needs rowVerdicts (from VALID) + normalizedRows (from XFORM) for duplicate detection
+    // ORCH assembles these composite inputs here so components remain pure functions.
     let input = null;
     const inputStageKey = stageName === 'INGEST' ? 'RAW_FILE' : getPreviousStageName(state.state);
     if (inputStageKey) {
@@ -58,6 +58,14 @@ export async function executeStage(state, dataStore, components) {
           // Bundle FinalizedMapping (primary) with ParsedFile (required for cell values)
           const parsedFile = await dataStore.retrieve(state.import_run_id, 'INGEST');
           input = { finalizedMapping: primaryInput, parsedFile };
+        } else if (stageName === 'DEDUPE') {
+          // Bundle rowVerdicts (primary) with normalizedRows (required for duplicate checking)
+          const normalizedRows = await dataStore.retrieve(state.import_run_id, 'XFORM');
+          input = {
+            rowVerdicts: primaryInput,
+            normalizedRows,
+            // existingRecordIndex and matcher use defaults from DEDUPE component
+          };
         } else {
           input = primaryInput;
         }
