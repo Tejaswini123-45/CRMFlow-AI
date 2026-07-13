@@ -350,6 +350,36 @@ export class Orchestrator {
   }
 
   /**
+   * Get the standardized output for download
+   * LLD §4: "Download Standardized Output" endpoint
+   *
+   * Returns the assembled StandardizedOutput from the DataStore, along with a
+   * suggested filename derived from the output_ref.  Controllers must not access
+   * the DataStore directly — all data retrieval goes through this method.
+   *
+   * @param {string} import_run_id - Import identifier
+   * @returns {Promise<{ filename: string, output: import('../contracts/types.js').StandardizedOutput }>}
+   */
+  async getDownloadOutput(import_run_id) {
+    const state = await loadState(import_run_id);
+
+    if (!state) {
+      throw new Error(`Import ${import_run_id} not found`);
+    }
+
+    if (state.state !== PipelineStateEnum.COMPLETE) {
+      throw new Error(`Import is not complete: ${state.state}`);
+    }
+
+    const exportData = await this.dataStore.retrieve(import_run_id, 'EXPORT');
+
+    return {
+      filename: exportData.output_ref,
+      output: exportData.output,
+    };
+  }
+
+  /**
    * Get audit log for an import
    * LLD §4: "Get Audit Log" endpoint
    *
