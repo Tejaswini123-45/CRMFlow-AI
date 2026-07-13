@@ -108,9 +108,10 @@ export class InMemoryDataStore extends DataStore {
       });
     }
 
-    // Store data (deep clone to prevent mutations)
+    // Store data. Buffers are stored by reference (JSON round-trip destroys the
+    // prototype). All other values are deep-cloned to prevent mutation.
     const importData = this.storage.get(import_run_id);
-    const clonedData = JSON.parse(JSON.stringify(data));
+    const clonedData = Buffer.isBuffer(data) ? data : JSON.parse(JSON.stringify(data));
     importData.set(stage, clonedData);
 
     // Update metadata
@@ -151,9 +152,10 @@ export class InMemoryDataStore extends DataStore {
       meta.last_accessed = new Date();
     }
 
-    // Return deep clone
+    // Return a deep clone. Buffers are returned by reference (safe — INGEST
+    // only reads the Buffer, never mutates it).
     const data = importData.get(stage);
-    return JSON.parse(JSON.stringify(data));
+    return Buffer.isBuffer(data) ? data : JSON.parse(JSON.stringify(data));
   }
 
   /**

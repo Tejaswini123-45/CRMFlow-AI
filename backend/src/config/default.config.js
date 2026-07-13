@@ -102,6 +102,9 @@ export const DEFAULT_CONFIG = {
     min_phone_digits: 7,
   },
 
+  // AI Mapping (Phase 6)
+  aimap_max_columns_per_batch: 50, // AES §11: batch-size cap
+
   // File Processing Limits (Phase 4)
   max_file_size_bytes: 50 * 1024 * 1024, // 50MB
   csv_parsing_timeout_ms: 30000, // 30 seconds

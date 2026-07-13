@@ -3,6 +3,8 @@
  * Phase 2 - Validates AUDIT record() and query() functionality
  */
 
+import { test, describe, beforeEach } from 'node:test';
+import assert from 'node:assert';
 import { AUDIT, count, clear } from '../audit/index.js';
 import { PipelineStateEnum } from '../contracts/types.js';
 
@@ -12,7 +14,7 @@ describe('AUDIT Logger (LLD §11)', () => {
   });
 
   describe('record() - Write Operations', () => {
-    it('should record a decision successfully', () => {
+    test('should record a decision successfully', () => {
       const result = AUDIT.record({
         import_run_id: 'test-import-1',
         stage: PipelineStateEnum.MAPPING_IN_PROGRESS,
@@ -22,10 +24,10 @@ describe('AUDIT Logger (LLD §11)', () => {
         rationale: 'Header matches known pattern',
       });
 
-      expect(result.success).toBe(true);
+      assert.strictEqual(result.success, true);
     });
 
-    it('should auto-generate timestamp if not provided', () => {
+    test('should auto-generate timestamp if not provided', () => {
       const before = new Date();
 
       AUDIT.record({
@@ -38,21 +40,23 @@ describe('AUDIT Logger (LLD §11)', () => {
       const after = new Date();
       const records = AUDIT.query('test-import-1');
 
-      expect(records[0].timestamp).toBeDefined();
-      expect(records[0].timestamp.getTime()).toBeGreaterThanOrEqual(before.getTime());
-      expect(records[0].timestamp.getTime()).toBeLessThanOrEqual(after.getTime());
+      assert.ok(records[0].timestamp !== undefined);
+      assert.ok(records[0].timestamp.getTime() >= before.getTime());
+      assert.ok(records[0].timestamp.getTime() <= after.getTime());
     });
 
-    it('should throw error for missing required fields', () => {
-      expect(() =>
-        AUDIT.record({
-          import_run_id: 'test-import-1',
-          // missing stage, subject, decision
-        })
-      ).toThrow('DecisionRecord missing required fields');
+    test('should throw error for missing required fields', () => {
+      assert.throws(
+        () =>
+          AUDIT.record({
+            import_run_id: 'test-import-1',
+            // missing stage, subject, decision
+          }),
+        /DecisionRecord missing required fields/
+      );
     });
 
-    it('should accept nullable confidence and rationale', () => {
+    test('should accept nullable confidence and rationale', () => {
       const result = AUDIT.record({
         import_run_id: 'test-import-1',
         stage: PipelineStateEnum.VALIDATING,
@@ -62,11 +66,11 @@ describe('AUDIT Logger (LLD §11)', () => {
         rationale: null,
       });
 
-      expect(result.success).toBe(true);
+      assert.strictEqual(result.success, true);
 
       const records = AUDIT.query('test-import-1');
-      expect(records[0].confidence).toBeNull();
-      expect(records[0].rationale).toBeNull();
+      assert.strictEqual(records[0].confidence, null);
+      assert.strictEqual(records[0].rationale, null);
     });
   });
 
@@ -104,48 +108,50 @@ describe('AUDIT Logger (LLD §11)', () => {
       });
     });
 
-    it('should retrieve all records for an import_run_id', () => {
+    test('should retrieve all records for an import_run_id', () => {
       const records = AUDIT.query('import-1');
-      expect(records).toHaveLength(3);
+      assert.strictEqual(records.length, 3);
     });
 
-    it('should return empty array for non-existent import_run_id', () => {
+    test('should return empty array for non-existent import_run_id', () => {
       const records = AUDIT.query('nonexistent');
-      expect(records).toEqual([]);
+      assert.deepStrictEqual(records, []);
     });
 
-    it('should return records in chronological order', () => {
+    test('should return records in chronological order', () => {
       const records = AUDIT.query('import-1');
 
-      expect(records[0].stage).toBe(PipelineStateEnum.PARSING);
-      expect(records[1].stage).toBe(PipelineStateEnum.MAPPING_IN_PROGRESS);
-      expect(records[2].stage).toBe(PipelineStateEnum.MAPPING_IN_PROGRESS);
+      assert.strictEqual(records[0].stage, PipelineStateEnum.PARSING);
+      assert.strictEqual(records[1].stage, PipelineStateEnum.MAPPING_IN_PROGRESS);
+      assert.strictEqual(records[2].stage, PipelineStateEnum.MAPPING_IN_PROGRESS);
 
       // Verify timestamps are in order
-      expect(records[0].timestamp.getTime()).toBeLessThanOrEqual(
-        records[1].timestamp.getTime()
-      );
-      expect(records[1].timestamp.getTime()).toBeLessThanOrEqual(
-        records[2].timestamp.getTime()
-      );
+      assert.ok(records[0].timestamp.getTime() <= records[1].timestamp.getTime());
+      assert.ok(records[1].timestamp.getTime() <= records[2].timestamp.getTime());
     });
 
-    it('should isolate records between different import_run_ids', () => {
+    test('should isolate records between different import_run_ids', () => {
       const import1Records = AUDIT.query('import-1');
       const import2Records = AUDIT.query('import-2');
 
-      expect(import1Records).toHaveLength(3);
-      expect(import2Records).toHaveLength(1);
+      assert.strictEqual(import1Records.length, 3);
+      assert.strictEqual(import2Records.length, 1);
 
       // No cross-contamination
-      expect(import1Records.every((r) => r.import_run_id === 'import-1')).toBe(true);
-      expect(import2Records.every((r) => r.import_run_id === 'import-2')).toBe(true);
+      assert.strictEqual(
+        import1Records.every((r) => r.import_run_id === 'import-1'),
+        true
+      );
+      assert.strictEqual(
+        import2Records.every((r) => r.import_run_id === 'import-2'),
+        true
+      );
     });
 
-    it('should throw error if import_run_id is missing', () => {
-      expect(() => AUDIT.query()).toThrow('import_run_id is required');
-      expect(() => AUDIT.query(null)).toThrow('import_run_id is required');
-      expect(() => AUDIT.query('')).toThrow('import_run_id is required');
+    test('should throw error if import_run_id is missing', () => {
+      assert.throws(() => AUDIT.query(), /import_run_id is required/);
+      assert.throws(() => AUDIT.query(null), /import_run_id is required/);
+      assert.throws(() => AUDIT.query(''), /import_run_id is required/);
     });
   });
 
@@ -181,43 +187,44 @@ describe('AUDIT Logger (LLD §11)', () => {
       });
     });
 
-    it('should filter by stage', () => {
+    test('should filter by stage', () => {
       const mappingRecords = AUDIT.query('import-1', {
         stage: PipelineStateEnum.MAPPING_IN_PROGRESS,
       });
 
-      expect(mappingRecords).toHaveLength(2);
-      expect(mappingRecords.every((r) => r.stage === PipelineStateEnum.MAPPING_IN_PROGRESS)).toBe(
+      assert.strictEqual(mappingRecords.length, 2);
+      assert.strictEqual(
+        mappingRecords.every((r) => r.stage === PipelineStateEnum.MAPPING_IN_PROGRESS),
         true
       );
     });
 
-    it('should filter by subject', () => {
+    test('should filter by subject', () => {
       const column1Records = AUDIT.query('import-1', { subject: 'column_1' });
 
-      expect(column1Records).toHaveLength(1);
-      expect(column1Records[0].subject).toBe('column_1');
+      assert.strictEqual(column1Records.length, 1);
+      assert.strictEqual(column1Records[0].subject, 'column_1');
     });
 
-    it('should support multiple filters simultaneously', () => {
+    test('should support multiple filters simultaneously', () => {
       const filtered = AUDIT.query('import-1', {
         stage: PipelineStateEnum.MAPPING_IN_PROGRESS,
         subject: 'column_2',
       });
 
-      expect(filtered).toHaveLength(1);
-      expect(filtered[0].stage).toBe(PipelineStateEnum.MAPPING_IN_PROGRESS);
-      expect(filtered[0].subject).toBe('column_2');
+      assert.strictEqual(filtered.length, 1);
+      assert.strictEqual(filtered[0].stage, PipelineStateEnum.MAPPING_IN_PROGRESS);
+      assert.strictEqual(filtered[0].subject, 'column_2');
     });
 
-    it('should return empty array when no records match filter', () => {
+    test('should return empty array when no records match filter', () => {
       const filtered = AUDIT.query('import-1', { stage: PipelineStateEnum.COMPLETE });
-      expect(filtered).toEqual([]);
+      assert.deepStrictEqual(filtered, []);
     });
   });
 
   describe('Round-Trip Test (Master Plan Acceptance Criteria)', () => {
-    it('should correctly round-trip record() → query()', () => {
+    test('should correctly round-trip record() → query()', () => {
       const originalRecord = {
         import_run_id: 'test-roundtrip',
         stage: PipelineStateEnum.MAPPING_IN_PROGRESS,
@@ -231,17 +238,17 @@ describe('AUDIT Logger (LLD §11)', () => {
       AUDIT.record(originalRecord);
       const retrieved = AUDIT.query('test-roundtrip');
 
-      expect(retrieved).toHaveLength(1);
-      expect(retrieved[0].import_run_id).toBe(originalRecord.import_run_id);
-      expect(retrieved[0].stage).toBe(originalRecord.stage);
-      expect(retrieved[0].subject).toBe(originalRecord.subject);
-      expect(retrieved[0].decision).toBe(originalRecord.decision);
-      expect(retrieved[0].confidence).toBe(originalRecord.confidence);
-      expect(retrieved[0].rationale).toBe(originalRecord.rationale);
-      expect(retrieved[0].timestamp).toEqual(originalRecord.timestamp);
+      assert.strictEqual(retrieved.length, 1);
+      assert.strictEqual(retrieved[0].import_run_id, originalRecord.import_run_id);
+      assert.strictEqual(retrieved[0].stage, originalRecord.stage);
+      assert.strictEqual(retrieved[0].subject, originalRecord.subject);
+      assert.strictEqual(retrieved[0].decision, originalRecord.decision);
+      assert.strictEqual(retrieved[0].confidence, originalRecord.confidence);
+      assert.strictEqual(retrieved[0].rationale, originalRecord.rationale);
+      assert.deepStrictEqual(retrieved[0].timestamp, originalRecord.timestamp);
     });
 
-    it('should handle multiple records for same import_run_id', () => {
+    test('should handle multiple records for same import_run_id', () => {
       const records = [
         {
           import_run_id: 'multi-test',
@@ -266,13 +273,13 @@ describe('AUDIT Logger (LLD §11)', () => {
       records.forEach((r) => AUDIT.record(r));
 
       const retrieved = AUDIT.query('multi-test');
-      expect(retrieved).toHaveLength(3);
+      assert.strictEqual(retrieved.length, 3);
     });
   });
 
   describe('Utility Functions', () => {
-    it('should count records correctly', () => {
-      expect(count('empty')).toBe(0);
+    test('should count records correctly', () => {
+      assert.strictEqual(count('empty'), 0);
 
       AUDIT.record({
         import_run_id: 'count-test',
@@ -281,7 +288,7 @@ describe('AUDIT Logger (LLD §11)', () => {
         decision: 'test',
       });
 
-      expect(count('count-test')).toBe(1);
+      assert.strictEqual(count('count-test'), 1);
 
       AUDIT.record({
         import_run_id: 'count-test',
@@ -290,10 +297,10 @@ describe('AUDIT Logger (LLD §11)', () => {
         decision: 'test2',
       });
 
-      expect(count('count-test')).toBe(2);
+      assert.strictEqual(count('count-test'), 2);
     });
 
-    it('should clear all records', () => {
+    test('should clear all records', () => {
       AUDIT.record({
         import_run_id: 'test-1',
         stage: PipelineStateEnum.PARSING,
@@ -308,16 +315,16 @@ describe('AUDIT Logger (LLD §11)', () => {
         decision: 'test',
       });
 
-      expect(count('test-1')).toBe(1);
-      expect(count('test-2')).toBe(1);
+      assert.strictEqual(count('test-1'), 1);
+      assert.strictEqual(count('test-2'), 1);
 
       clear();
 
-      expect(count('test-1')).toBe(0);
-      expect(count('test-2')).toBe(0);
+      assert.strictEqual(count('test-1'), 0);
+      assert.strictEqual(count('test-2'), 0);
     });
 
-    it('should clear records for specific import', () => {
+    test('should clear records for specific import', () => {
       AUDIT.record({
         import_run_id: 'keep',
         stage: PipelineStateEnum.PARSING,
@@ -334,13 +341,13 @@ describe('AUDIT Logger (LLD §11)', () => {
 
       AUDIT.clearImport('delete');
 
-      expect(count('keep')).toBe(1);
-      expect(count('delete')).toBe(0);
+      assert.strictEqual(count('keep'), 1);
+      assert.strictEqual(count('delete'), 0);
     });
   });
 
   describe('Immutability', () => {
-    it('should return clones to prevent mutation', () => {
+    test('should return clones to prevent mutation', () => {
       AUDIT.record({
         import_run_id: 'immutable-test',
         stage: PipelineStateEnum.MAPPING_IN_PROGRESS,
@@ -353,7 +360,7 @@ describe('AUDIT Logger (LLD §11)', () => {
       records1[0].confidence = 0.5; // Try to mutate
 
       const records2 = AUDIT.query('immutable-test');
-      expect(records2[0].confidence).toBe(0.9); // Should still be original value
+      assert.strictEqual(records2[0].confidence, 0.9); // Should still be original value
     });
   });
 });

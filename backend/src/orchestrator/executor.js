@@ -43,22 +43,21 @@ export async function executeStage(state, dataStore, components) {
   }
 
   try {
-    // Get input data from previous stage (if not first stage)
+    // Get input data: INGEST reads the raw uploaded file; all other stages read the
+    // previous stage's output.
     let input = null;
-    if (stageName !== 'INGEST') {
-      const previousStage = getPreviousStageName(state.state);
-      if (previousStage) {
-        try {
-          input = await dataStore.retrieve(state.import_run_id, previousStage);
-        } catch (error) {
-          return {
-            success: false,
-            error: {
-              type: 'UnclassifiedError',
-              message: `Failed to retrieve data from previous stage: ${error.message}`,
-            },
-          };
-        }
+    const inputStageKey = stageName === 'INGEST' ? 'RAW_FILE' : getPreviousStageName(state.state);
+    if (inputStageKey) {
+      try {
+        input = await dataStore.retrieve(state.import_run_id, inputStageKey);
+      } catch (error) {
+        return {
+          success: false,
+          error: {
+            type: 'UnclassifiedError',
+            message: `Failed to retrieve data from stage ${inputStageKey}: ${error.message}`,
+          },
+        };
       }
     }
 

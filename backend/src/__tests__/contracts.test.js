@@ -3,6 +3,8 @@
  * Phase 2 - Validates all contract types match LLD §5-6 specifications
  */
 
+import { test, describe } from 'node:test';
+import assert from 'node:assert';
 import {
   PipelineStateEnum,
   TERMINAL_STATES,
@@ -10,7 +12,7 @@ import {
 } from '../contracts/types.js';
 
 describe('Contracts - Pipeline State (LLD §7)', () => {
-  it('should have all required pipeline states', () => {
+  test('should have all required pipeline states', () => {
     const requiredStates = [
       'UPLOADED',
       'PARSING',
@@ -29,27 +31,27 @@ describe('Contracts - Pipeline State (LLD §7)', () => {
     ];
 
     requiredStates.forEach((state) => {
-      expect(PipelineStateEnum[state]).toBe(state);
+      assert.strictEqual(PipelineStateEnum[state], state);
     });
 
     // Verify no extra states were added
-    expect(Object.keys(PipelineStateEnum)).toHaveLength(requiredStates.length);
+    assert.strictEqual(Object.keys(PipelineStateEnum).length, requiredStates.length);
   });
 
-  it('should define terminal states correctly', () => {
-    expect(TERMINAL_STATES.has(PipelineStateEnum.PARSE_FAILED)).toBe(true);
-    expect(TERMINAL_STATES.has(PipelineStateEnum.MAPPING_FAILED)).toBe(true);
-    expect(TERMINAL_STATES.has(PipelineStateEnum.COMPLETE)).toBe(true);
-    expect(TERMINAL_STATES.has(PipelineStateEnum.FAILED)).toBe(true);
+  test('should define terminal states correctly', () => {
+    assert.strictEqual(TERMINAL_STATES.has(PipelineStateEnum.PARSE_FAILED), true);
+    assert.strictEqual(TERMINAL_STATES.has(PipelineStateEnum.MAPPING_FAILED), true);
+    assert.strictEqual(TERMINAL_STATES.has(PipelineStateEnum.COMPLETE), true);
+    assert.strictEqual(TERMINAL_STATES.has(PipelineStateEnum.FAILED), true);
 
     // Non-terminal states
-    expect(TERMINAL_STATES.has(PipelineStateEnum.AWAITING_REVIEW)).toBe(false);
-    expect(TERMINAL_STATES.has(PipelineStateEnum.PARSING)).toBe(false);
+    assert.strictEqual(TERMINAL_STATES.has(PipelineStateEnum.AWAITING_REVIEW), false);
+    assert.strictEqual(TERMINAL_STATES.has(PipelineStateEnum.PARSING), false);
   });
 });
 
 describe('Contracts - Error Types (LLD §10)', () => {
-  it('should have all error types from LLD taxonomy', () => {
+  test('should have all error types from LLD taxonomy', () => {
     const requiredErrorTypes = [
       'STRUCTURAL_PARSE_ERROR',
       'EMPTY_OR_UNREADABLE_FILE',
@@ -63,34 +65,34 @@ describe('Contracts - Error Types (LLD §10)', () => {
     ];
 
     requiredErrorTypes.forEach((errorType) => {
-      expect(ErrorTypes[errorType]).toBeDefined();
-      expect(typeof ErrorTypes[errorType]).toBe('string');
+      assert.ok(ErrorTypes[errorType]);
+      assert.strictEqual(typeof ErrorTypes[errorType], 'string');
     });
 
     // Verify no extra error types
-    expect(Object.keys(ErrorTypes)).toHaveLength(requiredErrorTypes.length);
+    assert.strictEqual(Object.keys(ErrorTypes).length, requiredErrorTypes.length);
   });
 
-  it('should have correctly formatted error type values', () => {
+  test('should have correctly formatted error type values', () => {
     // Values should match PascalCase format from LLD §10
-    expect(ErrorTypes.STRUCTURAL_PARSE_ERROR).toBe('StructuralParseError');
-    expect(ErrorTypes.AI_MAPPING_TIMEOUT).toBe('AIMappingTimeout');
-    expect(ErrorTypes.UNCLASSIFIED_ERROR).toBe('UnclassifiedError');
+    assert.strictEqual(ErrorTypes.STRUCTURAL_PARSE_ERROR, 'StructuralParseError');
+    assert.strictEqual(ErrorTypes.AI_MAPPING_TIMEOUT, 'AIMappingTimeout');
+    assert.strictEqual(ErrorTypes.UNCLASSIFIED_ERROR, 'UnclassifiedError');
   });
 });
 
 describe('Contracts - Type Shapes (LLD §5-6)', () => {
-  it('should export all required contract types', async () => {
+  test('should export all required contract types', async () => {
     // Importing from contracts should work
     const contracts = await import('../contracts/index.js');
 
     // Verify key exports exist
-    expect(contracts.PipelineStateEnum).toBeDefined();
-    expect(contracts.ErrorTypes).toBeDefined();
-    expect(contracts.TERMINAL_STATES).toBeDefined();
+    assert.ok(contracts.PipelineStateEnum);
+    assert.ok(contracts.ErrorTypes);
+    assert.ok(contracts.TERMINAL_STATES);
   });
 
-  it('should document all internal contract types via JSDoc', () => {
+  test('should document all internal contract types via JSDoc', () => {
     // This test documents that we have JSDoc @typedef for:
     // - ParsedFile (INGEST output)
     // - ColumnProfile (HDRX output)
@@ -104,10 +106,10 @@ describe('Contracts - Type Shapes (LLD §5-6)', () => {
     // - DecisionRecord (AUDIT shape)
 
     // Actual validation happens via IDE and JSDoc, not runtime
-    expect(true).toBe(true);
+    assert.strictEqual(true, true);
   });
 
-  it('should document all API DTO types via JSDoc', () => {
+  test('should document all API DTO types via JSDoc', () => {
     // This test documents that we have JSDoc @typedef for:
     // - CreateImportRequest
     // - ImportRunSummaryDTO
@@ -119,6 +121,6 @@ describe('Contracts - Type Shapes (LLD §5-6)', () => {
     // - AuditLogDTO
 
     // Actual validation happens via IDE and JSDoc, not runtime
-    expect(true).toBe(true);
+    assert.strictEqual(true, true);
   });
 });

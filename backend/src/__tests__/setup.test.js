@@ -3,18 +3,21 @@
  * Phase 1 — Verifies test infrastructure is working
  */
 
+import { test, describe } from 'node:test';
+import assert from 'node:assert';
+
 describe('Test Setup', () => {
-  it('should run tests successfully', () => {
-    expect(true).toBe(true);
+  test('should run tests successfully', () => {
+    assert.strictEqual(true, true);
   });
   
-  it('should have basic JavaScript working', () => {
+  test('should have basic JavaScript working', () => {
     const testObject = {
       name: 'test',
       value: 42,
     };
     
-    expect(testObject.name).toBe('test');
-    expect(testObject.value).toBe(42);
+    assert.strictEqual(testObject.name, 'test');
+    assert.strictEqual(testObject.value, 42);
   });
 });
