@@ -105,6 +105,9 @@ export const DEFAULT_CONFIG = {
   // AI Mapping (Phase 6)
   aimap_max_columns_per_batch: 50, // AES §11: batch-size cap
 
+  // Duplicate Detection (Phase 10)
+  dedupe_key_fields: ['email', 'phone_number'], // PRD §10: "Deduped in MVP by email/phone match"
+
   // File Processing Limits (Phase 4)
   max_file_size_bytes: 50 * 1024 * 1024, // 50MB
   csv_parsing_timeout_ms: 30000, // 30 seconds
